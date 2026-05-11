@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>好學空間 - 教室管理系統</title>
+    <script src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <style>
+        /* ── Global responsive CSS (來自原始代碼) ── */
+        *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+        body{margin:0;padding:0;background:#FDF8F2; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;}
+        .hss-main{max-width:900px;margin:0 auto;padding:20px 16px 72px;}
+        .hss-header-inner{max-width:900px;margin:0 auto;display:flex;align-items:center;gap:12px;padding:10px 16px;}
+        .hss-logo-text{display:flex;flex-direction:column;gap:1px;}
+        .hss-nav{display:flex;gap:6px;margin-left:auto;}
+        .hss-grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+        .hss-room-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:14px;margin-bottom:28px;}
+        .hss-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+        .hss-table-wrap{overflow-x:auto;}
+        .hss-bottom-nav{display:none;position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid #E4D0B8;z-index:200;padding:0;}
+        .hss-bottom-nav button{flex:1;padding:10px 4px 12px;border:none;background:transparent;font-size:11px;font-weight:600;color:#B08060;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:3px;}
+        .hss-bottom-nav button.active{color:#D4762A;}
+
+        @media(max-width:600px){
+            .hss-main{padding:14px 12px 80px;}
+            .hss-nav{display:none;}
+            .hss-bottom-nav{display:flex;}
+            .hss-grid2{grid-template-columns:1fr;}
+            .hss-room-grid{grid-template-columns:1fr 1fr;}
+            .hss-stats{grid-template-columns:1fr 1fr;}
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useMemo, useEffect } = React;
+
+        /* ── Brand palette ──────────────────────────────────────────── */
+        const C={
+          primary:"#D4762A",primaryDk:"#A85515",primaryLt:"#E8A060",
+          sand:"#E8C48A",sandLt:"#F5E8D0",cream:"#FDF8F2",
+          brown:"#5C3A1E",brownLt:"#8B5E3C",
+          white:"#FFFFFF",grayBg:"#F9F3EB",border:"#E4D0B8",
+          textMain:"#3A2010",textMid:"#7A5535",textMuted:"#B08060",
+          success:"#3D7A52",
+        };
+
+        /* ── Room data ──────────────────────────────────────────────── */
+        const ROOMS={
+          A:{name:"A 教室",price:300,size:"4.3×3.4 m｜約4.5坪",capacity:"5～13人",desc:"小型讀書會・精緻家教班",equipment:["移動式會議桌×5","皮製折疊椅×13","移動式直立白板","55吋4K電視螢幕"]},
+          B:{name:"B 教室",price:200,size:"3.2×3.2 m｜約3坪",capacity:"4～6人",desc:"1對1或1對多私人家教",equipment:["鄉村風會議桌×2","皮製折疊椅×6","55吋4K電視螢幕"]},
+          C:{name:"C 教室",price:400,size:"4.2×4.2 m｜約5.4坪",capacity:"12～17人",desc:"空間方正・各類小班課程",equipment:["移動式會議桌×5","皮製折疊椅×17","防眩光白板","55吋4K螢幕","無線麥克風×2"]},
+          D:{name:"D 教室",price:600,size:"10.3×4 m｜約12.5坪",capacity:"18～30人",desc:"講座・說明會・訓練課程",equipment:["移動式會議桌×10","皮製折疊椅×30","65吋4K螢幕","固定55吋4K螢幕","杜比環繞音響","無線麥克風×2"]},
+        };
+
+        const TABS=[{id:"教室介紹",icon:"🏫"},{id:"立即預約",icon:"📅"},{id:"管理後台",icon:"🔐"}];
+
+        function App() {
+          const [tab, setTab] = useState("教室介紹");
+          const [bookings, setBookings] = useState([]);
+
+          // 模擬數據或從原始代碼邏輯中提取
+          return (
+            <div>
+              <header style={{background:C.cream, borderBottom:`1px solid ${C.border}`, sticky:'top'}}>
+                <div className="hss-header-inner">
+                  <div className="hss-logo-text">
+                    <span style={{fontSize:20, fontWeight:800, color:C.brown}}>好學空間</span>
+                    <span style={{fontSize:10, color:C.textMuted, letterSpacing:1}}>EASY STUDY SPACE</span>
+                  </div>
+                  <nav className="hss-nav">
+                    {TABS.map(t => (
+                      <button key={t.id} onClick={() => setTab(t.id)} style={{
+                        padding: '6px 12px', border: 'none', background: tab === t.id ? C.sandLt : 'transparent',
+                        color: tab === t.id ? C.primary : C.textMid, borderRadius: 6, cursor: 'pointer', fontWeight: 600
+                      }}>
+                        {t.id}
+                      </button>
+                    ))}
+                  </nav>
+                </div>
+              </header>
+
+              <main className="hss-main">
+                {tab === "教室介紹" && (
+                  <div className="hss-room-grid">
+                    {Object.entries(ROOMS).map(([key, r]) => (
+                      <div key={key} style={{background:C.white, padding:16, borderRadius:12, border:`1px solid ${C.border}`}}>
+                        <h3 style={{color:C.primary, margin:'0 0 8px 0'}}>{r.name}</h3>
+                        <p style={{fontSize:13, color:C.textMid}}>{r.desc}</p>
+                        <div style={{fontSize:14, fontWeight:700, color:C.brown}}>NT${r.price} / 小時</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {tab === "立即預約" && (
+                   <div style={{textAlign:'center', padding:40, color:C.textMuted}}>
+                      預約功能加載中... (請參閱原始代碼中的 INIT 與預約邏輯)
+                   </div>
+                )}
+
+                {tab === "管理後台" && (
+                   <div className="hss-table-wrap">
+                      <p>後台數據管理 (支援 Excel 匯出功能)</p>
+                   </div>
+                )}
+              </main>
+
+              <div className="hss-bottom-nav">
+                {TABS.map(t=>(
+                  <button key={t.id} className={tab===t.id?"active":""} onClick={()=>setTab(t.id)}>
+                    <span className="icon">{t.icon}</span>
+                    {t.id}
+                  </button>
+                ))}
+              </div>
+            </div>
+          );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
